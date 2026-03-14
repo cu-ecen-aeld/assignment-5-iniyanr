@@ -1,27 +1,43 @@
 name: assignment-test
 on:
-    push:
-        tags-ignore:
-            - '*'
-        branches:
-            - '*'
+  push:
+    tags-ignore:
+      - '*'
+    branches:
+      - '*'
+
 jobs:
-    full-test:
-        container: cuaesd/aesd-autotest:24-assignment5-buildroot
-        runs-on: self-hosted
-        timeout-minutes: 120
-        steps:
-          - uses: actions/checkout@v2
-          - name: Checkout submodules
-            run: git submodule update --init --recursive
-          - uses: webfactory/ssh-agent@v0.5.3
-            with:
-                ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          - name: Run full test
-            env:
-              GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
-            run: ./full-test.sh
-          - name: Cleanup
-            if: always()
-            run: |
-              ssh-add -D
+  full-test:
+    # Using the specific container provided by the course
+    container: cuaesd/aesd-autotest:24-assignment5-buildroot
+    runs-on: self-hosted
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # STEP 1: Setup SSH Agent FIRST so git can use the keys for submodules
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # STEP 2: Now that keys are loaded, update the buildroot submodule
+      - name: Checkout submodules
+        run: |
+          git submodule sync
+          git submodule update --init --recursive
+
+      # STEP 3: Run the actual assignment tests
+      - name: Run full test
+        env:
+          GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
+        run: ./full-test.sh
+
+      # STEP 4: Always cleanup keys, even if the test fails
+      - name: Cleanup
+        if: always()
+        run: |
+          # Use || true to prevent cleanup errors from masking actual test failures
+          ssh-add -D || true
