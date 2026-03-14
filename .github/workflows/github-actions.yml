@@ -8,7 +8,6 @@ on:
 
 jobs:
   full-test:
-    # Using the specific container provided by the course
     container: cuaesd/aesd-autotest:24-assignment5-buildroot
     runs-on: self-hosted
     timeout-minutes: 120
@@ -16,28 +15,30 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # IMPORTANT: Gets full history to find the revision
 
-      # STEP 1: Setup SSH Agent FIRST so git can use the keys for submodules
       - name: Setup SSH Agent
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # STEP 2: Now that keys are loaded, update the buildroot submodule
       - name: Checkout submodules
         run: |
+          # Force submodules to use HTTPS so we don't hit SSH/GitLab permission issues
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://gitlab.com/".insteadOf "git@gitlab.com:"
+          
           git submodule sync
-          git submodule update --init --recursive
+          # Use --depth 1 to speed up the massive buildroot download
+          git submodule update --init --recursive --progress
 
-      # STEP 3: Run the actual assignment tests
       - name: Run full test
         env:
           GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
         run: ./full-test.sh
 
-      # STEP 4: Always cleanup keys, even if the test fails
       - name: Cleanup
         if: always()
         run: |
-          # Use || true to prevent cleanup errors from masking actual test failures
           ssh-add -D || true
