@@ -25,6 +25,7 @@ jobs:
                 echo " UserKNownHostFile /dev/nll" >> ~/.ssh/config
           - name: Run full test
             env:
+              FORCE_UNSAFE_CONFIGURE: 1
               GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
             run: ./full-test.sh
           - name: Cleanup
