@@ -7,38 +7,22 @@ on:
       - '*'
 
 jobs:
-  full-test:
-    container: cuaesd/aesd-autotest:24-assignment5-buildroot
-    runs-on: self-hosted
-    timeout-minutes: 120
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0 # IMPORTANT: Gets full history to find the revision
-
-      - name: Setup SSH Agent
-        uses: webfactory/ssh-agent@v0.5.3
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Checkout submodules
-        run: |
-          # Force submodules to use HTTPS so we don't hit SSH/GitLab permission issues
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-          git config --global url."https://gitlab.com/".insteadOf "git@gitlab.com:"
-          
-          git submodule sync
-          # Use --depth 1 to speed up the massive buildroot download
-          git submodule update --init --recursive --progress
-
-      - name: Run full test
-        env:
-          GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
-        run: ./full-test.sh
-
-      - name: Cleanup
-        if: always()
-        run: |
-          ssh-add -D || true
+    full-test:
+        container: cuaesd/aesd-autotest:24-assignment7-buildroot
+        runs-on: self-hosted
+        timeout-minutes: 120
+        steps:
+          - uses: actions/checkout@v2
+          - name: Checkout submodules
+            run: git submodule update --init --recursive
+          - uses: webfactory/ssh-agent@v0.5.3
+            with:
+                ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          - name: Run full test
+            env:
+              GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
+            run: ./full-test.sh
+          - name: Cleanup
+            if: always()
+            run: |
+              ssh-add -D
